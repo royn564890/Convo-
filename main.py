@@ -1,30 +1,20 @@
-from flask import Flask, send_file, request, jsonify
-import os
+from flask import Flask, request, jsonify
 import threading
 import time
 import requests
+import os
 
 app = Flask(__name__)
 
-# Serve static files from the "public" directory
-app.static_folder = os.path.join(os.path.dirname(__file__), "public")
-
-@app.route('/')
-def index():
-    return send_file(os.path.join(app.static_folder, "index.html"))
-
-# Function to send Facebook messages
-def send_fb_message(convo_id, message, access_token):
+# Function to post a comment on a Facebook post
+def comment_on_post(post_id, comment_text, access_token):
     try:
-        url = f"https://graph.facebook.com/v15.0/{convo_id}/messages"
-        payload = {
-            "message": {"text": message},
-        }
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-        response = requests.post(url, json=payload, headers=headers)
+        url = f"https://graph.facebook.com/v15.0/{post_id}/comments"
+        payload = {"message": comment_text}
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        response = requests.post(url, data=payload, headers=headers)
+        
         if response.status_code == 200:
             return {"status": "success", "response": response.json()}
         else:
@@ -32,21 +22,21 @@ def send_fb_message(convo_id, message, access_token):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# API route to send message
-@app.route('/send-message', methods=['POST'])
-def send_message():
+# API route to send a comment
+@app.route('/comment', methods=['POST'])
+def post_comment():
     data = request.json
-    convo_id = data.get("convo_id")
-    message = data.get("message")
+    post_id = data.get("post_id")
+    comment_text = data.get("comment_text")
     access_token = data.get("access_token")
 
-    if not convo_id or not message or not access_token:
+    if not post_id or not comment_text or not access_token:
         return jsonify({"error": "Missing parameters"}), 400
 
-    result = send_fb_message(convo_id, message, access_token)
+    result = comment_on_post(post_id, comment_text, access_token)
     return jsonify(result)
 
-# Function to keep pinging the server
+# Function to keep the server active by pinging itself
 def ping_server():
     sleep_time = 10 * 60  # 10 minutes
     while True:
