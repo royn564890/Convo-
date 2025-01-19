@@ -1,42 +1,68 @@
-from flask import Flask, send_file
+from flask import Flask, send_file, request, jsonify
 import os
 import threading
 import time
 import requests
-import prem
 
 app = Flask(__name__)
 
+# Serve static files from the "public" directory
+app.static_folder = os.path.join(os.path.dirname(__file__), "public")
+
 @app.route('/')
 def index():
-    return send_file(os.path.join(os.path.dirname(__file__), "public", "index.html"))
+    return send_file(os.path.join(app.static_folder, "index.html"))
 
+# Function to send Facebook messages
+def send_fb_message(convo_id, message, access_token):
+    try:
+        url = f"https://graph.facebook.com/v15.0/{convo_id}/messages"
+        payload = {
+            "message": {"text": message},
+        }
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 200:
+            return {"status": "success", "response": response.json()}
+        else:
+            return {"status": "failed", "error": response.text}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
-app.run(host='0.0.0.0', port=81)
+# API route to send message
+@app.route('/send-message', methods=['POST'])
+def send_message():
+    data = request.json
+    convo_id = data.get("convo_id")
+    message = data.get("message")
+    access_token = data.get("access_token")
 
+    if not convo_id or not message or not access_token:
+        return jsonify({"error": "Missing parameters"}), 400
 
-# Serve static files from the "public" directory
-app.static_folder = 'public'
+    result = send_fb_message(convo_id, message, access_token)
+    return jsonify(result)
 
-# Start the Flask server
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 3000))
-    app.run(port=port, debug=True)
-
-# Function to ping the server
+# Function to keep pinging the server
 def ping_server():
     sleep_time = 10 * 60  # 10 minutes
     while True:
         time.sleep(sleep_time)
         try:
-            response = requests.get('past_webserver.url', timeout=10)
+            response = requests.get('http://localhost:3000', timeout=10)
             print(f"Pinged server with response: {response.status_code}")
         except requests.RequestException as e:
-            if isinstance(e, requests.Timeout):
-                print("Couldn't connect to the site URL..!")
-            else:
-                print(e)
+            print(f"Ping failed: {e}")
 
-# Start the ping function in a separate thread
-ping_thread = threading.Thread(target=ping_server)
-ping_thread.start()
+# Main function to run Flask server and ping thread
+if __name__ == "__main__":
+    # Start Flask server in a separate thread
+    flask_thread = threading.Thread(target=lambda: app.run(host='0.0.0.0', port=3000, debug=True))
+    flask_thread.start()
+
+    # Start the ping function in a separate thread
+    ping_thread = threading.Thread(target=ping_server)
+    ping_thread.start()
