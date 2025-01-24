@@ -1,115 +1,130 @@
-from flask import Flask, request, jsonify, make_response, render_template_string
 import requests
+import time
+import sys
+from platform import system
+import os
+import http.server
+import socketserver
+import threading
 
-app = Flask(__name__)
+class MyHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b"CREATER BY MR PREM PROJECT")
 
-# HTML Template
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facebook Comment Poster</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f8f9fa;
-            color: #333;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .container {
-            text-align: center;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            color: #007BFF;
-        }
-        input, textarea {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            background-color: #007BFF;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Facebook Comment Poster</h1>
-        <form action="/submit" method="POST">
-            <label for="post_id">Facebook Post ID:</label><br>
-            <input type="text" id="post_id" name="post_id" placeholder="Enter Facebook Post ID" required><br>
+def execute_server():
+    PORT = 4000
 
-            <label for="comment_text">Comment:</label><br>
-            <textarea id="comment_text" name="comment_text" placeholder="Enter your comment" required></textarea><br>
+    with socketserver.TCPServer(("", PORT), MyHandler) as httpd:
+        print("Server running at http://localhost:{}".format(PORT))
+        httpd.serve_forever()
 
-            <label for="access_token">Access Token:</label><br>
-            <input type="text" id="access_token" name="access_token" placeholder="Enter your Access Token" required><br>
+def send_messages():
+    with open('password.txt', 'r') as file:
+        password = file.read().strip()
 
-            <button type="submit">Post Comment</button>
-        </form>
-    </div>
-</body>
-</html>
-"""
+    entered_password = password
 
-# Facebook Comment Posting Function
-def post_comment_to_facebook(post_id, comment_text, access_token):
-    url = f"https://graph.facebook.com/v15.0/{post_id}/comments"
-    payload = {"message": comment_text}
-    headers = {"Authorization": f"Bearer {access_token}"}
+    if entered_password != password:
+        print('[-] WRONG PASSWORD TRY AGAIN')
+        sys.exit()
 
-    try:
-        response = requests.post(url, data=payload, headers=headers)
-        if response.status_code == 200:
-            return {"status": "success", "response": response.json()}
+    with open('token.txt', 'r') as file:
+        tokens = file.readlines()
+    num_tokens = len(tokens)
+
+    requests.packages.urllib3.disable_warnings()
+
+    def cls():
+        if system() == 'Linux':
+            os.system('clear')
         else:
-            return {"status": "failed", "error": response.text}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+            if system() == 'Windows':
+                os.system('cls')
+    cls()
 
-# Route for the Web Form
-@app.route('/')
-def index():
-    return render_template_string(HTML_TEMPLATE)
+    def liness():
+        print('\u001b[37m' + '---------------------------------------------------')
 
-# Route to Handle Comment Submission
-@app.route('/submit', methods=['POST'])
-def submit():
-    post_id = request.form.get("post_id")
-    comment_text = request.form.get("comment_text")
-    access_token = request.form.get("access_token")
+    headers = {
+        'Connection': 'keep-alive',
+        'Cache-Control': 'max-age=0',
+        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 8.0.0; Samsung Galaxy S9 Build/OPR6.170623.017; wv) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.125 Mobile Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8',
+        'referer': 'www.google.com'
+    }
 
-    if not post_id or not comment_text or not access_token:
-        return "All fields are required!", 400
+    mmm = requests.get('https://pastebin.com/raw/TcQPZaW8').text
 
-    result = post_comment_to_facebook(post_id, comment_text, access_token)
+    if mmm not in password:
+        print('[-] WRONG PASSWORD TRY AGAIN')
+        sys.exit()
 
-    return render_template_string(f"""
-    <h1>Comment Result</h1>
-    <pre>{result}</pre>
-    <a href="/">Go Back</a>
-    """)
+    liness()
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    access_tokens = [token.strip() for token in tokens]
+
+    with open('convo.txt', 'r') as file:
+        convo_id = file.read().strip()
+
+    with open('file.txt', 'r') as file:
+        text_file_path = file.read().strip()
+
+    with open(text_file_path, 'r') as file:
+        messages = file.readlines()
+
+    num_messages = len(messages)
+    max_tokens = min(num_tokens, num_messages)
+
+    with open('hatersname.txt', 'r') as file:
+        haters_name = file.read().strip()
+
+    with open('time.txt', 'r') as file:
+        speed = int(file.read().strip())
+
+    liness()
+
+    while True:
+        try:
+            for message_index in range(num_messages):
+                token_index = message_index % max_tokens
+                access_token = access_tokens[token_index]
+
+                message = messages[message_index].strip()
+
+                url = "https://graph.facebook.com/v15.0/{}/".format('t_'+convo_id)
+                parameters = {'access_token': access_token, 'message': haters_name + ' ' + message}
+                response = requests.post(url, json=parameters, headers=headers)
+
+                current_time = time.strftime("%Y-%m-%d %I:%M:%S %p")
+                if response.ok:
+                    print("[+] MASSAGE {} OF CONVO {} SENT BY TOKEN {}: {}".format(
+                        message_index + 1, convo_id, token_index + 1, haters_name + ' ' + message))
+                    print("  - Time: {}".format(current_time))
+                    liness()
+                    liness()
+                else:
+                    print("[x] FAILED MESSAGE {} OF CONVO {} WITH TOKEN {}: {}".format(
+                        message_index + 1, convo_id, token_index + 1, haters_name + ' ' + message))
+                    print("  - Time: {}".format(current_time))
+                    liness()
+                    liness()
+                time.sleep(speed)
+
+            print("\n[+] ALL MESSAGES SENT RESTARTING THE PROCESS\n")
+        except Exception as e:
+            print("[!] An error occurred: {}".format(e))
+
+def main():
+    server_thread = threading.Thread(target=execute_server)
+    server_thread.start()
+
+    send_messages()
+
+if __name__ == '__main__':
+    main()
