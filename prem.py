@@ -1,129 +1,80 @@
 from flask import Flask, request, jsonify, make_response, render_template_string
-import threading
-import http.server
-import socketserver
 import requests
 
 app = Flask(__name__)
 
-# HTML Template with JavaScript and Embedded Name "Rocky Roy Roy"
+# HTML Template
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facebook Comment Poster - By Rocky Roy Roy</title>
+    <title>Facebook Comment Poster</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
+            background-color: #f8f9fa;
+            color: #333;
             margin: 0;
             padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
         }
-        header {
-            background-color: #6200ea;
-            color: white;
-            padding: 1rem;
+        .container {
             text-align: center;
-        }
-        form {
-            margin: 2rem auto;
-            width: 50%;
-            padding: 2rem;
             background: white;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 20px;
             border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        form label {
-            display: block;
-            margin: 0.5rem 0 0.2rem;
+        h1 {
+            color: #007BFF;
         }
-        form input, form textarea, form button {
+        input, textarea {
             width: 100%;
-            padding: 0.8rem;
-            margin-bottom: 1rem;
-            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
             border-radius: 4px;
-            font-size: 1rem;
         }
-        form button {
-            background-color: #6200ea;
+        button {
+            background-color: #007BFF;
             color: white;
+            padding: 10px 20px;
             border: none;
+            border-radius: 4px;
             cursor: pointer;
         }
-        form button:hover {
-            background-color: #4500c0;
+        button:hover {
+            background-color: #0056b3;
         }
     </style>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            // Preload cookies if available
-            const userName = getCookie("user_name");
-            const postTime = getCookie("post_time");
-            const accessToken = getCookie("access_token");
-
-            if (userName) document.getElementById("user_name").value = userName;
-            if (postTime) document.getElementById("post_time").value = postTime;
-            if (accessToken) document.getElementById("access_token").value = accessToken;
-
-            // Function to get a cookie by name
-            function getCookie(name) {
-                let cookies = document.cookie.split("; ");
-                for (let i = 0; i < cookies.length; i++) {
-                    let parts = cookies[i].split("=");
-                    if (parts[0] === name) return decodeURIComponent(parts[1]);
-                }
-                return "";
-            }
-        });
-
-        // Form validation before submission
-        function validateForm(event) {
-            const userName = document.getElementById("user_name").value;
-            const postTime = document.getElementById("post_time").value;
-            const accessToken = document.getElementById("access_token").value;
-
-            if (!userName || !postTime || !accessToken) {
-                alert("Please fill in all required fields!");
-                event.preventDefault();
-            } else {
-                document.cookie = `user_name=${userName}; max-age=86400`;
-                document.cookie = `post_time=${postTime}; max-age=86400`;
-                document.cookie = `access_token=${accessToken}; max-age=86400`;
-            }
-        }
-    </script>
 </head>
 <body>
-    <header>
-        <h1>Welcome to Facebook Comment Poster - By Rocky Roy Roy</h1>
-    </header>
-    <form action="/submit" method="POST" onsubmit="validateForm(event)">
-        <label for="user_name">Your Name:</label>
-        <input type="text" id="user_name" name="user_name" placeholder="Enter your name" required>
+    <div class="container">
+        <h1>Facebook Comment Poster</h1>
+        <form action="/submit" method="POST">
+            <label for="post_id">Facebook Post ID:</label><br>
+            <input type="text" id="post_id" name="post_id" placeholder="Enter Facebook Post ID" required><br>
 
-        <label for="post_id">Facebook Post ID:</label>
-        <input type="text" id="post_id" name="post_id" placeholder="Enter the Facebook Post ID" required>
+            <label for="comment_text">Comment:</label><br>
+            <textarea id="comment_text" name="comment_text" placeholder="Enter your comment" required></textarea><br>
 
-        <label for="comment_text">Comment:</label>
-        <textarea id="comment_text" name="comment_text" placeholder="Write your comment here" required></textarea>
+            <label for="access_token">Access Token:</label><br>
+            <input type="text" id="access_token" name="access_token" placeholder="Enter your Access Token" required><br>
 
-        <label for="access_token">Access Token:</label>
-        <input type="text" id="access_token" name="access_token" placeholder="Enter your access token" required>
-
-        <label for="post_time">Post Time:</label>
-        <input type="text" id="post_time" name="post_time" placeholder="e.g., 12:30 PM" required>
-
-        <button type="submit">Post Comment</button>
-    </form>
+            <button type="submit">Post Comment</button>
+        </form>
+    </div>
 </body>
 </html>
 """
 
-# Function to Post Facebook Comment
-def post_facebook_comment(post_id, comment_text, access_token):
+# Facebook Comment Posting Function
+def post_comment_to_facebook(post_id, comment_text, access_token):
     url = f"https://graph.facebook.com/v15.0/{post_id}/comments"
     payload = {"message": comment_text}
     headers = {"Authorization": f"Bearer {access_token}"}
@@ -137,34 +88,28 @@ def post_facebook_comment(post_id, comment_text, access_token):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# Flask Route to Render HTML Form
+# Route for the Web Form
 @app.route('/')
 def index():
     return render_template_string(HTML_TEMPLATE)
 
-# Flask Route to Handle Form Submission
+# Route to Handle Comment Submission
 @app.route('/submit', methods=['POST'])
 def submit():
-    user_name = request.form.get("user_name")
     post_id = request.form.get("post_id")
     comment_text = request.form.get("comment_text")
     access_token = request.form.get("access_token")
-    post_time = request.form.get("post_time")
 
-    if not user_name or not post_id or not comment_text or not access_token or not post_time:
+    if not post_id or not comment_text or not access_token:
         return "All fields are required!", 400
 
-    # Post comment using the function
-    result = post_facebook_comment(post_id, comment_text, access_token)
+    result = post_comment_to_facebook(post_id, comment_text, access_token)
 
-    # Set cookies for user name, post time, and access token
-    response = make_response(f"<h1>Comment Result</h1><pre>{result}</pre><a href='/'>Go Home</a>")
-    response.set_cookie('user_name', user_name, max_age=60 * 60 * 24)  # Cookie valid for 1 day
-    response.set_cookie('post_time', post_time, max_age=60 * 60 * 24)
-    response.set_cookie('access_token', access_token, max_age=60 * 60 * 24)
-    return response
+    return render_template_string(f"""
+    <h1>Comment Result</h1>
+    <pre>{result}</pre>
+    <a href="/">Go Back</a>
+    """)
 
-# Function to Run the Flask App
 if __name__ == "__main__":
-    print("Flask app running at http://localhost:5000 by Rocky Roy Roy")
     app.run(host="0.0.0.0", port=5000, debug=True)
